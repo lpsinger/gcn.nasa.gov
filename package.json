@@ -61,7 +61,7 @@
     "@types/react-tag-autocomplete": "^6.1.1",
     "autoprefixer": "^10.4.2",
     "del": "^6.0.0",
-    "eslint": "^8.15.0",
+    "eslint": "^8.20.0",
     "eslint-config-prettier": "^8.3.0",
     "gulp": "^4.0.2",
     "gulp-postcss": "^9.0.1",

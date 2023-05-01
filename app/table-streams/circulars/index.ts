@@ -21,6 +21,7 @@ import { createTriggerHandler } from '~/lib/lambdaTrigger.server'
 import { search as getSearchClient } from '~/lib/search.server'
 import type { Circular } from '~/routes/circulars/circulars.lib'
 import { formatCircular } from '~/routes/circulars/circulars.lib'
+import { register } from '~/routes/circulars/datacite.server'
 
 const index = 'circulars'
 const fromName = 'GCN Circulars'
@@ -114,7 +115,7 @@ module.exports.handler = createTriggerHandler(
       promises.push(removeIndex(id))
     } /* (eventName === 'INSERT' || eventName === 'MODIFY') */ else {
       const circular = unmarshallTrigger(dynamodb!.NewImage) as Circular
-      promises.push(putIndex(circular))
+      promises.push(putIndex(circular), register(circular))
       if (eventName === 'INSERT') promises.push(send(circular))
     }
 

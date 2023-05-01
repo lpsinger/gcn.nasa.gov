@@ -11,6 +11,7 @@ import { ButtonGroup, Grid, Icon } from '@trussworks/react-uswds'
 
 import { formatDateISO } from './circulars.lib'
 import { get } from './circulars.server'
+import { getHandleURL, getPrefix } from './datacite.server'
 import TimeAgo from '~/components/TimeAgo'
 
 export const handle = {
@@ -25,11 +26,15 @@ export const handle = {
 export async function loader({ params: { circularId } }: DataFunctionArgs) {
   if (!circularId)
     throw new Response('circularId must be defined', { status: 400 })
-  return await get(parseFloat(circularId))
+  const result = await get(parseInt(circularId))
+  const doiPrefix = getPrefix()
+  const doiHandleUrl = getHandleURL()
+  const doi = `${doiHandleUrl}/${doiPrefix}/${circularId}`
+  return { ...result, doi }
 }
 
 export default function () {
-  const { circularId, subject, submitter, createdOn, body } =
+  const { circularId, subject, submitter, createdOn, body, doi } =
     useLoaderData<typeof loader>()
   const [searchParams] = useSearchParams()
   let searchParamsString = searchParams.toString()
@@ -57,6 +62,9 @@ export default function () {
             reloadDocument
           >
             JSON
+          </Link>
+          <Link to={doi} className="usa-button usa-button--outline">
+            DOI
           </Link>
         </ButtonGroup>
       </ButtonGroup>

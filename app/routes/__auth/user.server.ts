@@ -17,7 +17,9 @@ export interface User {
   idp: string | null
   groups: string[]
   cognitoUserName: string
-  name: string | undefined
+  givenName: string | undefined
+  middleName: string | undefined
+  familyName: string | undefined
   affiliation: string | undefined
 }
 
@@ -54,7 +56,9 @@ export function parseTokenSet(tokenSet: TokenSet): {
   const groups = ((claims['cognito:groups'] ?? []) as string[]).filter(
     (group) => group.startsWith('gcn.nasa.gov/')
   )
-  const name = claims.name
+  const givenName = claims.given_name
+  const familyName = claims.family_name
+  const middleName = claims.middle_name
   const affiliation = claims['affiliation'] as string | undefined
   const accessToken = tokenSet.access_token
   const refreshToken = tokenSet.refresh_token
@@ -65,7 +69,17 @@ export function parseTokenSet(tokenSet: TokenSet): {
   if (typeof cognitoUserName !== 'string')
     throw new Error('cognito:username claim must be a string')
 
-  const user = { sub, email, groups, idp, cognitoUserName, name, affiliation }
+  const user = {
+    sub,
+    email,
+    groups,
+    idp,
+    cognitoUserName,
+    givenName,
+    middleName,
+    familyName,
+    affiliation,
+  }
   return { user, accessToken, refreshToken, expiresAt, existingIdp }
 }
 
@@ -86,7 +100,9 @@ export async function getUser({ headers }: Request) {
         'groups',
         'idp',
         'cognitoUserName',
-        'name',
+        'givenName',
+        'middleName',
+        'familyName',
         'affiliation',
       ]
         .map((key) => [key, session.get(key)])

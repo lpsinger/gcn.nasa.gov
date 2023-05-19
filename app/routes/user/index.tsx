@@ -8,8 +8,16 @@
 import { UpdateUserAttributesCommand } from '@aws-sdk/client-cognito-identity-provider'
 import type { DataFunctionArgs } from '@remix-run/node'
 import { useFetcher, useLoaderData } from '@remix-run/react'
-import { Button, Icon, Label, TextInput } from '@trussworks/react-uswds'
+import {
+  Button,
+  Fieldset,
+  Icon,
+  Label,
+  TextInput,
+} from '@trussworks/react-uswds'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { useId } from 'react'
 
 import { storage } from '../__auth/auth.server'
 import { getUser, updateSession } from '../__auth/user.server'
@@ -25,8 +33,8 @@ export async function loader({ request }: DataFunctionArgs) {
   const user = await getUser(request)
   if (!user) throw new Response(null, { status: 403 })
 
-  const { email, idp, name, affiliation } = user
-  return { email, idp, name, affiliation }
+  const { email, idp, givenName, middleName, familyName, affiliation } = user
+  return { email, idp, givenName, middleName, familyName, affiliation }
 }
 
 export async function action({ request }: DataFunctionArgs) {
@@ -37,14 +45,24 @@ export async function action({ request }: DataFunctionArgs) {
     storage.getSession(request.headers.get('Cookie')),
     request.formData(),
   ])
-  const name = getFormDataString(data, 'name')
+  const givenName = getFormDataString(data, 'givenName')
+  const middleName = getFormDataString(data, 'middleName')
+  const familyName = getFormDataString(data, 'familyName')
   const affiliation = getFormDataString(data, 'affiliation')
 
   const command = new UpdateUserAttributesCommand({
     UserAttributes: [
       {
-        Name: 'name',
-        Value: name,
+        Name: 'given_name',
+        Value: givenName,
+      },
+      {
+        Name: 'middle_name',
+        Value: middleName,
+      },
+      {
+        Name: 'family_name',
+        Value: familyName,
       },
       {
         Name: 'custom:affiliation',
@@ -60,57 +78,97 @@ export async function action({ request }: DataFunctionArgs) {
     maybeThrow(e, 'not saving name and affiliation permanently')
   }
 
-  user.name = name
+  user.givenName = givenName
+  user.middleName = middleName
+  user.familyName = familyName
   user.affiliation = affiliation
   await updateSession({ user }, session)
   return null
 }
 
+function AccessibleTextInput({
+  label,
+  hint,
+  ...props
+}: { label: ReactNode; hint: ReactNode } & Omit<
+  Parameters<typeof TextInput>[0],
+  'id' | 'aria-describedby'
+>) {
+  const hintId = useId()
+  const inputId = useId()
+  return (
+    <>
+      <Label htmlFor={inputId}>{label}</Label>
+      <Hint id={hintId}>{hint}</Hint>
+      <TextInput id={inputId} aria-describedby={hintId} {...props} />
+    </>
+  )
+}
+
 export default function () {
-  const { email, idp, name, affiliation } = useLoaderData<typeof loader>()
+  const { email, givenName, middleName, familyName, affiliation } =
+    useLoaderData<typeof loader>()
   const fetcher = useFetcher<typeof action>()
   const [dirty, setDirty] = useState(false)
-  const [currentName, setCurrentName] = useState(name)
+  const [currentGivenName, setCurrentGivenName] = useState(givenName)
+  const [currentMiddleName, setCurrentMiddleName] = useState(middleName)
+  const [currentFamilyName, setCurrentFamilyName] = useState(familyName)
   const [currentAffiliation, setCurrentAffiliation] = useState(affiliation)
   const disabled = fetcher.state !== 'idle'
 
   return (
     <>
-      <h1>Welcome, {email}!</h1>
-      <p className="usa-paragraph">
-        You signed in with {idp || 'username and password'}.
-      </p>
-      <h2>Profile</h2>
+      <h1>Profile</h1>
       <fetcher.Form method="POST" onSubmit={() => setDirty(false)}>
         <p className="usa-paragraph">
           Your profile affects how your name appears in GCN Circulars that you
-          submit.
+          submit and in bibliographic entries for GCN Circulars.
         </p>
-        <Label htmlFor="name">Name</Label>
-        <Hint id="nameHint">
-          How would you like your name to appear in GCN Circulars? For example:
-          A. E. Einstein, A. Einstein, Albert Einstein
-        </Hint>
-        <TextInput
-          aria-describedby="nameHint"
-          id="name"
-          name="name"
-          type="text"
-          defaultValue={name}
-          disabled={disabled}
-          onChange={(e) => {
-            setDirty(true)
-            setCurrentName(e.target.value)
-          }}
-        />
-        <Label htmlFor="affiliation">Affiliation</Label>
-        <Hint id="affiliationHint">
-          For example: Pennsylvania State University, Ioffe Institute, DESY,
-          Fermi-GBM Team, or AAVSO
-        </Hint>
-        <TextInput
-          aria-describedby="affiliationHint"
-          id="affiliation"
+        <Fieldset>
+          <h2>Name</h2>
+          <AccessibleTextInput
+            label="First or given name"
+            hint="For example: Jose, Darren, or Mai"
+            name="givenName"
+            type="text"
+            autoComplete="given-name"
+            defaultValue={givenName}
+            disabled={disabled}
+            onChange={(e) => {
+              setDirty(true)
+              setCurrentGivenName(e.target.value)
+            }}
+          />
+          <AccessibleTextInput
+            label="Middle name or initial"
+            hint="For example: Lynn or L."
+            name="middleName"
+            type="text"
+            autoComplete="additional-name"
+            defaultValue={middleName}
+            disabled={disabled}
+            onChange={(e) => {
+              setDirty(true)
+              setCurrentMiddleName(e.target.value)
+            }}
+          />
+          <AccessibleTextInput
+            label="Last or family name"
+            hint="For example: Martinez Gonzalez, Gu, or Smith"
+            name="familyName"
+            type="text"
+            autoComplete="family-name"
+            defaultValue={familyName}
+            disabled={disabled}
+            onChange={(e) => {
+              setDirty(true)
+              setCurrentFamilyName(e.target.value)
+            }}
+          />
+        </Fieldset>
+        <AccessibleTextInput
+          label="Affiliation"
+          hint="For example: For example: Pennsylvania State University, Ioffe Institute, DESY, Fermi-GBM Team, or AAVSO"
           name="affiliation"
           type="text"
           defaultValue={affiliation}
@@ -120,18 +178,32 @@ export default function () {
             setCurrentAffiliation(e.target.value)
           }}
         />
-        <Label htmlFor="preview">Preview</Label>
-        <Hint id="previewHint">
-          This is how the "From" field will be shown in GCN Circulars that you
-          submit.
-        </Hint>
-        <div aria-describedby="previewHint" id="preview">
-          {formatAuthor({
-            name: currentName,
-            affiliation: currentAffiliation,
-            email,
-          })}
-        </div>
+        <Fieldset>
+          <h2>Preview</h2>
+          <Label htmlFor="preview">Circulars submitter</Label>
+          <Hint id="previewHint">
+            This is how the "From" field will be shown in GCN Circulars that you
+            submit.
+          </Hint>
+          <div aria-describedby="previewHint" id="preview">
+            {formatAuthor({
+              name:
+                [currentGivenName, currentMiddleName, currentFamilyName]
+                  .filter(Boolean)
+                  .join(' ') || undefined,
+              affiliation: currentAffiliation,
+              email,
+            })}
+          </div>
+          <Label htmlFor="biblio">Bibilography</Label>
+          <Hint id="biblioHint">
+            This is how your name will appear when Circulars by you are cited in
+            bibliographies.
+          </Hint>
+          <div aria-describedby="biblioHint" id="biblio">
+            {currentFamilyName}, {currentGivenName} {currentMiddleName}
+          </div>
+        </Fieldset>
         <Button
           className="usa-button margin-top-2"
           type="submit"
